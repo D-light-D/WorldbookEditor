@@ -5152,7 +5152,8 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
 #wb-content-popup-overlay .wb-content-editor {
     --wb-editor-guide: rgba(100, 116, 139, 0.3);
     --wb-editor-marker: #94a3b8;
-    --wb-editor-active: rgba(59, 130, 246, 0.055);
+    --wb-editor-active: rgba(59, 130, 246, 0.14);
+    --wb-editor-modified: rgba(245, 158, 11, 0.14);
     display: flex;
     flex: 1;
     min-height: 0;
@@ -5202,14 +5203,41 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
     pointer-events: none;
     z-index: 2;
 }
-#wb-content-popup-overlay .wb-editor-decoration > div,
+#wb-content-popup-overlay .wb-editor-decoration > div {
+    position: relative;
+    min-height: 24px;
+    white-space: pre;
+    tab-size: 4;
+}
 #wb-content-popup-overlay .wb-editor-gutter > div > div {
-    height: 24px;
+    min-height: 24px;
+}
+#wb-content-popup-overlay .wb-editor-measure {
+    visibility: hidden;
+}
+#wb-content-popup-overlay .wb-editor-decoration > .modified {
+    background: var(--wb-editor-modified);
+    box-shadow: inset 3px 0 #e9a126;
 }
 #wb-content-popup-overlay .wb-editor-decoration > .active {
     background: var(--wb-editor-active);
+    outline: 1px solid rgba(59, 130, 246, 0.35);
+    outline-offset: -1px;
+}
+#wb-content-popup-overlay .wb-editor-decoration > .modified.active {
+    background: var(--wb-editor-modified);
+    box-shadow: inset 3px 0 #e9a126, inset 0 0 0 1px rgba(59, 130, 246, 0.6);
+}
+#wb-content-popup-overlay .wb-editor-gutter .modified {
+    border-left: 3px solid #e9a126;
+    box-sizing: border-box;
 }
 #wb-content-popup-overlay .wb-editor-indent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: 100%;
+    overflow: hidden;
     display: inline-block;
     height: 24px;
     vertical-align: top;
@@ -5240,6 +5268,16 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
     white-space: pre;
     overflow: auto;
     overflow-wrap: normal;
+    caret-color: #2563eb;
+}
+#wb-content-popup-overlay .wb-editor-wrapped .wb-popup-textarea,
+#wb-content-popup-overlay .wb-editor-wrapped .wb-editor-decoration > div {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+#wb-content-popup-overlay .wb-editor-wrapped .wb-popup-textarea {
+    overflow-x: hidden;
 }
 #wb-content-popup-overlay .wb-editor-status {
     font-size: 12px;
@@ -5248,7 +5286,8 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
 [data-theme='dark'] #wb-content-popup-overlay .wb-content-editor {
     --wb-editor-guide: rgba(235, 235, 245, 0.25);
     --wb-editor-marker: #8d99aa;
-    --wb-editor-active: rgba(100, 160, 255, 0.08);
+    --wb-editor-active: rgba(100, 160, 255, 0.20);
+    --wb-editor-modified: rgba(245, 158, 11, 0.19);
     background: var(--wb-bg-1, #1c1c1e);
     border-color: var(--wb-hairline, #38383a);
 }
@@ -5260,3 +5299,42 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
 [data-theme='dark'] #wb-content-popup-overlay .wb-editor-status {
     color: var(--wb-label-2, #b0b0b8);
 }
+.wb-editor-mode[aria-pressed='true'] {
+    background: #dbeafe !important;
+    color: #2563eb !important;
+    box-shadow: inset 0 0 0 1px #93c5fd;
+}
+[data-theme='dark'] .wb-editor-mode[aria-pressed='true'] {
+    background: #253d5b !important;
+    color: #9cc7ff !important;
+}
+.wb-readonly .wb-card input:disabled { opacity: 0.7; }
+.wb-readonly .wb-card .wb-pos-wrapper .wb-gr-trigger,
+.wb-readonly .wb-card .btn-delete { pointer-events: none; opacity: 0.45; }
+.wb-readonly #wb-view-binding .wb-gr-trigger,
+.wb-readonly #wb-view-binding .wb-multi-select { pointer-events: none; opacity: 0.6; }
+.wb-popup-modes { display: flex; gap: 6px; margin-left: auto; }
+#enhanced-wb-panel-v6 .wb-book-bar > .wb-btn-circle { flex-shrink: 0; }
+#enhanced-wb-panel-v6 .wb-book-bar > .wb-gr-trigger { min-width: 0; }
+#wb-content-popup-overlay .wb-popup-modes button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 50%;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 14px;
+    cursor: pointer;
+}
+[data-theme='dark'] #wb-content-popup-overlay .wb-popup-modes button {
+    background: #2c2c2e;
+    border-color: #48484a;
+    color: #b0b0b8;
+}
+#wb-content-popup-overlay .wb-popup-header { justify-content: space-between; gap: 10px; }
+#wb-content-popup-overlay .btn-save:disabled { opacity: 0.45; cursor: not-allowed; }

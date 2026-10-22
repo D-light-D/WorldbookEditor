@@ -13,6 +13,8 @@ export const CONFIG = {
 export const THEME_KEY = 'wb_ctx_theme';
 
 export const STATE = {
+    editable: false,
+    wrapContent: true,
     currentView: 'editor', // 'editor' | 'binding' | 'manage'
     currentBookName: null,
 

@@ -6,8 +6,15 @@ import { API } from './api.js';
 import { Actions } from './actions.js';
 import { logger } from './logger.js';
 import { setupContentEditor } from './content-editor.js';
+import { Popup, POPUP_RESULT } from '../../../popup.js';
 
 export const UI = {
+    applyWriteLock(panel) {
+        panel.classList.toggle('wb-readonly', !STATE.editable);
+        panel.querySelectorAll('.wb-card input, .wb-card select, #btn-add-entry, #btn-sort-priority, #btn-group-sort').forEach(control => {
+            control.disabled = !STATE.editable;
+        });
+    },
     // 防抖辅助函数
     debounce: function(fn, delay) {
         let timer;
@@ -67,6 +74,8 @@ export const UI = {
 
     async open() {
         if (document.getElementById(CONFIG.id)) return;
+        STATE.editable = false;
+        STATE.wrapContent = true;
 
         const panel = document.createElement('div');
         panel.id = CONFIG.id;
@@ -111,6 +120,8 @@ export const UI = {
                         <div class="wb-menu-wrapper">
                             <button class="wb-btn-circle" title="切换主题" id="btn-wb-menu-theme"><i id="btn-wb-menu-theme-toggle" class="fa-solid fa-moon interactable"></i></button>
                         </div>
+                        <button class="wb-btn-circle wb-editor-mode" id="btn-wb-write" title="只读：点击允许修改世界书" aria-label="允许修改世界书" aria-pressed="false"><i class="fa-solid fa-lock"></i></button>
+                        <button class="wb-btn-circle wb-editor-mode" id="btn-wb-wrap" title="自动换行：点击切换横向滚动" aria-label="横向滚动" aria-pressed="false"><i class="fa-solid fa-align-left"></i></button>
                         <input type="file" id="wb-import-file" accept=".json,.wb" style="display:none">
                     </div>
                     <div class="wb-stat-line">
@@ -162,6 +173,7 @@ export const UI = {
 
         // ESC 快捷键：优先关闭子弹窗，如果没有子弹窗则关闭主面板
         const escHandler = (e) => {
+            if (document.querySelector('dialog[open]')) return;
             if (e.key === 'Escape' && !e.isComposing) {
                 // 检查是否有子弹窗（模态框、弹窗、下拉菜单等）
                 const subOverlays = document.querySelectorAll('.wb-modal-overlay:not(.wb-main-panel-overlay), .wb-sort-modal-overlay, #wb-content-popup-overlay, #wb-active-dropdown, #wb-gr-tag-menu-overlay');
@@ -199,6 +211,25 @@ export const UI = {
         $('#btn-group-sort').onclick = () => this.openSortingModal();
         $('#btn-sort-priority').onclick = () => Actions.sortByPriority();
         $('#btn-wb-menu-theme').onclick = () => Actions.switchTheme();
+        $('#btn-wb-write').onclick = async () => {
+            await Actions.flushPendingSave();
+            STATE.editable = !STATE.editable;
+            const button = $('#btn-wb-write');
+            button.setAttribute('aria-pressed', String(STATE.editable));
+            button.title = STATE.editable ? '可写：点击锁定世界书' : '只读：点击允许修改世界书';
+            button.innerHTML = `<i class="fa-solid fa-${STATE.editable ? 'lock-open' : 'lock'}"></i>`;
+            this.applyWriteLock(panel);
+        };
+        $('#btn-wb-wrap').onclick = () => {
+            STATE.wrapContent = !STATE.wrapContent;
+            $('#btn-wb-wrap').setAttribute('aria-pressed', String(!STATE.wrapContent));
+            $('#btn-wb-wrap').title = STATE.wrapContent ? '自动换行：点击切换横向滚动' : '横向滚动：点击恢复自动换行';
+        };
+        const lockObserver = new MutationObserver(() => this.applyWriteLock(panel));
+        lockObserver.observe(panel, { childList: true, subtree: true });
+        this.applyWriteLock(panel);
+        const removeLockedPanel = panel.remove.bind(panel);
+        panel.remove = () => { lockObserver.disconnect(); removeLockedPanel(); };
 
         const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
         Actions.applyTheme(savedTheme);
@@ -1286,12 +1317,33 @@ export const UI = {
         const keysInput = popup.querySelector('.wb-popup-input-keys');
         const textarea = popup.querySelector('.wb-popup-textarea');
         textarea.oninput = (e) => { tempContent = e.target.value; };
-        setupContentEditor(popup);
+        textarea.readOnly = !STATE.editable;
+        keysInput.readOnly = !STATE.editable;
+        popup.querySelector('.btn-save').disabled = !STATE.editable;
+        const editor = setupContentEditor(popup, { wrap: STATE.wrapContent });
+        const modeBar = document.createElement('div');
+        modeBar.className = 'wb-popup-modes';
+        // The same modes remain accessible while the modal covers the book bar.
+        modeBar.innerHTML = `<button type="button" class="wb-btn-circle wb-editor-mode" aria-label="允许修改世界书" aria-pressed="${STATE.editable}" title="切换只读 / 可写"><i class="fa-solid fa-${STATE.editable ? 'lock-open' : 'lock'}"></i></button><button type="button" class="wb-btn-circle wb-editor-mode" aria-label="横向滚动" aria-pressed="${!STATE.wrapContent}" title="切换自动换行 / 横向滚动"><i class="fa-solid fa-align-left"></i></button>`;
+        popup.querySelector('.wb-popup-header').appendChild(modeBar);
+        modeBar.children[0].onclick = async () => {
+            await document.querySelector('#btn-wb-write').onclick();
+            textarea.readOnly = keysInput.readOnly = !STATE.editable;
+            popup.querySelector('.btn-save').disabled = !STATE.editable;
+            modeBar.children[0].setAttribute('aria-pressed', String(STATE.editable));
+            modeBar.children[0].innerHTML = `<i class="fa-solid fa-${STATE.editable ? 'lock-open' : 'lock'}"></i>`;
+        };
+        modeBar.children[1].onclick = () => {
+            document.querySelector('#btn-wb-wrap').onclick();
+            modeBar.children[1].setAttribute('aria-pressed', String(!STATE.wrapContent));
+            editor.setWrap(STATE.wrapContent);
+        };
         keysInput.oninput = (e) => { tempKeys = e.target.value; };
 
         const close = () => overlay.remove();
         popup.querySelector('.btn-cancel').onclick = close;
         popup.querySelector('.btn-save').onclick = async () => {
+            if (!Actions.ensureWritable()) return;
             if (STATE.currentBookName !== bookName || !STATE.entries.includes(entry)) {
                 toastr.warning('世界书或条目已在其他位置更新，请复制当前内容后重新打开条目');
                 return;
@@ -1299,6 +1351,8 @@ export const UI = {
             const button = popup.querySelector('.btn-save');
             button.disabled = true;
             try {
+                const confirmed = await Popup.show.confirm('确认修改条目', '确定保存本次内容和关键词修改吗？');
+                if (confirmed !== POPUP_RESULT.AFFIRMATIVE) return;
                 const finalKeys = tempKeys.replace(/，/g, ',').split(',').map(s => s.trim()).filter(Boolean);
                 Actions.updateEntry(entry.uid, d => {
                     d.content = textarea.value;
@@ -1311,7 +1365,7 @@ export const UI = {
                 logger.error('Entry save failed:', error);
                 toastr.error('保存失败，请重试：' + error.message);
             } finally {
-                button.disabled = false;
+                button.disabled = !STATE.editable;
             }
         };
         overlay.onclick = (e) => { if (e.target === overlay) close(); };
@@ -1795,6 +1849,7 @@ export const UI = {
     },
 
     openSortingModal() {
+        if (!Actions.ensureWritable()) return;
         document.getElementById('btn-group-sort')?.blur();
         if (!STATE.currentBookName) return toastr.warning("请先选择一本世界书");
 
@@ -1886,6 +1941,7 @@ export const UI = {
         overlay.querySelector('#wb-sort-close').onclick = () => overlay.remove();
         overlay.querySelector('#wb-sort-cancel').onclick = () => overlay.remove();
         overlay.querySelector('#wb-sort-save').onclick = async () => {
+            if (!Actions.ensureWritable()) return;
             await API.saveBookEntries(STATE.currentBookName, STATE.entries);
             Actions.sortByPriority();
             overlay.remove();
@@ -3097,6 +3153,7 @@ export const UI = {
 
         // 监听输入框变化
         list.addEventListener('input', (e) => {
+            if (!STATE.editable) return;
             const card = e.target.closest('.wb-card');
             if (!card) return;
             const uid = Number(card.dataset.uid);
@@ -3112,6 +3169,7 @@ export const UI = {
 
         // 监听复选框和下拉框变化
         list.addEventListener('change', (e) => {
+            if (!STATE.editable) return;
             const card = e.target.closest('.wb-card');
             if (!card) return;
             const uid = Number(card.dataset.uid);

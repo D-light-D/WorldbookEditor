@@ -80,6 +80,11 @@ function scheduleTokenCount(text) {
 }
 
 export const Actions = {
+    ensureWritable() {
+        if (STATE.editable) return true;
+        toastr.info('当前为只读模式，请先点击顶部锁形按钮开启可写');
+        return false;
+    },
     async flushPendingSave() {
         if (STATE.debouncer) {
             clearTimeout(STATE.debouncer);
@@ -278,6 +283,7 @@ export const Actions = {
     },
 
     updateEntry(uid, updater) {
+        if (!this.ensureWritable()) return;
         const entry = STATE.entries.find(e => e.uid === uid);
         if (!entry) return;
 
@@ -303,6 +309,7 @@ export const Actions = {
     },
     
     async addNewEntry() {
+        if (!this.ensureWritable()) return;
         if (!STATE.currentBookName) return toastr.warning("请先选择一本世界书");
         const maxUid = STATE.entries.reduce((max, e) => Math.max(max, Number(e.uid) || 0), -1);
         const newUid = maxUid + 1;
@@ -317,12 +324,14 @@ export const Actions = {
     },
 
     async deleteEntry(uid) {
+        if (!this.ensureWritable()) return;
         if (!confirm("确定要删除此条目吗？")) return;
         await API.deleteEntries(STATE.currentBookName, [uid]);
         await this.loadBook(STATE.currentBookName);
     },
 
     sortByPriority() {
+        if (!this.ensureWritable()) return;
         STATE.entries.sort((a, b) => {
             const scoreA = this.getEntrySortScore(a);
             const scoreB = this.getEntrySortScore(b);
@@ -339,6 +348,7 @@ export const Actions = {
     },
 
     async batchSetExcludeRecursion(uids, value = true) {
+        if (!this.ensureWritable()) return;
         if (!STATE.currentBookName) throw new Error('No book loaded');
         let modified = false;
         STATE.entries.forEach(entry => {
@@ -425,6 +435,7 @@ export const Actions = {
     },
 
     async saveBindings() {
+        if (!this.ensureWritable()) { UI.renderBindingView(); return; }
         const view = document.getElementById('wb-view-binding');
         const charPrimary = view.querySelector('#wb-bind-char-primary').value;
         const charAddTags = view.querySelectorAll('.wb-ms-tag[data-bind-type="wb-bind-char-add"]');
@@ -523,6 +534,7 @@ export const Actions = {
     },
 
     async reorderEntry(fromIndex, toIndex) {
+        if (!this.ensureWritable()) return;
         if (fromIndex === toIndex) return;
         const [item] = STATE.entries.splice(fromIndex, 1);
         STATE.entries.splice(toIndex, 0, item);
@@ -558,6 +570,7 @@ export const Actions = {
     },
 
     async deleteBookDirectly(bookName) {
+        if (!this.ensureWritable()) return;
         if (!confirm(`确定要永久删除世界书 "${bookName}" 吗？`)) return;
         try {
             if (STATE.currentBookName === bookName && STATE.debouncer) {
@@ -586,6 +599,7 @@ export const Actions = {
     },
 
     async toggleBindState(bookName, targetCharName, isUnbind) {
+        if (!this.ensureWritable()) return;
         const context = getContext();
         const currentChar = context.characters[context.characterId]?.name;
 
@@ -613,6 +627,7 @@ export const Actions = {
     async actionImport() { document.getElementById('wb-import-file').click(); },
     
     async actionHandleImport(file) {
+        if (!this.ensureWritable()) return;
         if (!file) return;
         const reader = new FileReader();
         reader.onload = async (e) => {
@@ -711,6 +726,7 @@ export const Actions = {
     },
 
     async actionCreateNew() {
+        if (!this.ensureWritable()) return;
         const name = prompt("请输入新世界书名称:");
         if (!name) return;
         if (STATE.allBookNames.includes(name)) return toastr.warning("该名称已存在");
@@ -722,6 +738,7 @@ export const Actions = {
     },
 
     async actionDelete() {
+        if (!this.ensureWritable()) return;
         if (!STATE.currentBookName) return;
         if (!confirm(`确定要永久删除世界书 "${STATE.currentBookName}" 吗？`)) return;
         try {
@@ -735,6 +752,7 @@ export const Actions = {
     },
 
     async actionRename() {
+        if (!this.ensureWritable()) return;
         if (!STATE.currentBookName) return;
         const newName = prompt("重命名世界书为:", STATE.currentBookName);
         if (!newName || newName === STATE.currentBookName) return;
