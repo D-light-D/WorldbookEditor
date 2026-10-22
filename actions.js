@@ -133,14 +133,17 @@ export const Actions = {
             invalidateBoundBooksCache();
             if (document.getElementById(CONFIG.id)) this.refreshAllContext();
         });
-        es.on(et.CHARACTER_SELECTED, () => {
+        es.on(et.CHARACTER_EDITOR_OPENED, () => {
             invalidateBoundBooksCache();
             setTimeout(() => {
                 if (document.getElementById(CONFIG.id)) this.refreshAllContext();
                 else this.refreshAllContext();
             }, 100);
         });
-        es.on(et.CHARACTER_EDITED, () => { if (document.getElementById(CONFIG.id)) this.refreshAllContext(); });
+        es.on(et.CHARACTER_EDITED, () => {
+            invalidateBoundBooksCache();
+            if (document.getElementById(CONFIG.id)) this.refreshAllContext();
+        });
         // 角色新增/导入后，绑定的世界书映射缓存需要失效，否则"管理世界书"分组与
         // "联级删除主要世界书"会看不到新角色的绑定。
         es.on(et.CHARACTER_PAGE_LOADED, () => { invalidateBoundBooksCache(); });

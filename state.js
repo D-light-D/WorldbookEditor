@@ -57,7 +57,8 @@ export const WI_POSITION_MAP = {
     3: 'after_author_note',
     4: 'at_depth',
     5: 'before_example_messages',
-    6: 'after_example_messages'
+    6: 'after_example_messages',
+    7: 'outlet'
 };
 
 export const WI_POSITION_MAP_REV = Object.fromEntries(

@@ -2,7 +2,7 @@
 
 import { getContext } from '../../../extensions.js';
 import { getCharaFilename } from '../../../utils.js';
-import { world_info, world_names, selected_world_info, deleteWorldInfo } from '../../../world-info.js';
+import { world_info, world_names, selected_world_info, deleteWorldInfo, charUpdatePrimaryWorld as updatePrimaryWorld, charSetAuxWorlds as setAuxWorlds, onWorldInfoChange } from '../../../world-info.js';
 import { CONFIG, STATE } from './state.js';
 import { logger } from './logger.js';
 
@@ -14,50 +14,15 @@ export async function charUpdatePrimaryWorld(name) {
     const charId = context.characterId;
     if (charId === undefined || charId === null) return;
 
-    const character = context.characters[charId];
-    if (!character) return;
-
-    if (!character.data.extensions) character.data.extensions = {};
-    character.data.extensions.world = name;
-
-    const uiSelect = document.getElementById('character_world');
-    if (uiSelect) {
-        uiSelect.value = name;
-        uiSelect.dispatchEvent(new Event('change'));
-    }
-
-    const setWorldBtn = document.getElementById('set_character_world');
-    if (setWorldBtn) {
-        if (name) setWorldBtn.classList.add('world_set');
-        else setWorldBtn.classList.remove('world_set');
-    }
-
-    if (context.saveCharacterDebounced) {
-        context.saveCharacterDebounced();
-    }
+    if (!context.characters[charId]) return;
+    await updatePrimaryWorld(name);
 }
 
 /**
  * [兼容性 Polyfill] 设置角色辅助世界书列表
  */
 export function charSetAuxWorlds(fileName, books) {
-    const context = getContext();
-
-    if (!world_info.charLore) world_info.charLore = [];
-
-    const idx = world_info.charLore.findIndex(e => e.name === fileName);
-
-    if (books.length === 0) {
-        if (idx !== -1) world_info.charLore.splice(idx, 1);
-    } else if (idx === -1) {
-        world_info.charLore.push({ name: fileName, extraBooks: books });
-    } else {
-        world_info.charLore[idx].extraBooks = books;
-    }
-
-    if (context.saveSettingsDebounced) {
-        context.saveSettingsDebounced();
-    }
+    setAuxWorlds(fileName, books);
 }
 
 /**
@@ -118,10 +83,11 @@ export async function setCharBindings(type, worldName, isEnabled) {
     }
 
     if (type === 'chat') {
-        if (!character) return;
-        const chatName = context.chatId?.replace('.jsonl', '') || '';
-        // For single character mode, entity is always the character
-        const entityName = charName;
+        if (context.chatId === undefined || context.chatId === null || context.chatId === '') return;
+        const chatName = String(context.chatId).replace(/\.jsonl$/, '');
+        const entityName = context.groupId
+            ? context.groups?.find(group => String(group.id) === String(context.groupId))?.name || '群聊'
+            : charName;
         const oldChatWb = context.chatMetadata?.world_info || null;
 
         if (isEnabled) {
@@ -149,10 +115,14 @@ export async function setCharBindings(type, worldName, isEnabled) {
     }
 
     if (type === 'global') {
-        const command = isEnabled
-            ? `/world silent=true "${worldName}"`
-            : `/world state=off silent=true "${worldName}"`;
-        await context.executeSlashCommands(command);
+        // Use the native selector: slash commands split names on commas and
+        // interpret quotes/macros, which breaks otherwise valid book names.
+        const select = document.getElementById('world_info');
+        const index = world_names.indexOf(worldName);
+        const option = select && Array.from(select.options).find(item => Number(item.value) === index);
+        if (index < 0 || !option) throw new Error(`找不到世界书：${worldName}`);
+        option.selected = isEnabled;
+        onWorldInfoChange('__notSlashCommand__');
         updateBoundBooksCacheEntry(worldName, { global: isEnabled });
         return;
     }
@@ -323,7 +293,9 @@ export const API = {
         const newData = { ...oldData, entries: newEntriesObj };
         // 记录本次保存的数据对象，供 WORLDINFO_UPDATED 监听器识别"自身保存"并跳过多余重载
         STATE.lastSelfSave = { name, data: newData, ts: Date.now() };
-        await getContext().saveWorldInfo(name, newData, false);
+        // This extension already debounces writes. ST has one shared debounce
+        // timer for all books, so a second debounce can discard another book's save.
+        await getContext().saveWorldInfo(name, newData, true);
     },
 
     async createEntry(name, newEntriesArray) {
@@ -435,7 +407,9 @@ export const API = {
         const curChatWb = context.chatMetadata?.world_info;
         if (curChatWb && typeof curChatWb === 'string') {
             initBook(curChatWb);
-            const charName = context.characters?.[context.characterId]?.name;
+            const charName = context.groupId
+                ? context.groups?.find(group => String(group.id) === String(context.groupId))?.name || '群聊'
+                : context.characters?.[context.characterId]?.name;
             const chatName = String(context.chatId || '').replace(/\.jsonl$/, '');
             if (charName) {
                 const exists = boundMap[curChatWb].chat.some(c => c.charName === charName && c.chatName === chatName);
@@ -506,14 +480,19 @@ export const API = {
 
                 const context = getContext();
 
-                // Migrate current character's primary binding if set
-                const { primary } = await this.getCharBindings();
-                if (primary === oldName) {
-                    const charId = context.characterId;
-                    if (charId != null && context.characters[charId]) {
-                        context.characters[charId].data.extensions = context.characters[charId].data.extensions || {};
-                        context.characters[charId].data.extensions.world = newName;
-                        if (context.saveCharacterDebounced) context.saveCharacterDebounced();
+                // Persist all affected cards, including cards that are not open.
+                // Never delete the old book if any link failed to migrate.
+                const avatars = context.characters.filter(character =>
+                    character?.data?.extensions?.world === oldName).map(character => character.avatar);
+                if (avatars.length) {
+                    const result = await context.writeExtensionFieldBulk(avatars, 'world', newName);
+                    if (result.failed.length || avatars.some(avatar => !result.updated.includes(avatar))) {
+                        throw new Error('部分角色的主要世界书绑定未能更新，已保留原世界书');
+                    }
+                    const active = context.characters[context.characterId];
+                    if (active && avatars.includes(active.avatar)) {
+                        const select = document.getElementById('character_world');
+                        if (select) select.value = newName;
                     }
                 }
 
@@ -546,8 +525,23 @@ export const API = {
                 // Migrate chat binding
                 if (context.chatMetadata?.world_info === oldName) {
                     context.chatMetadata.world_info = newName;
-                    context.saveMetadataDebounced();
+                    await context.saveMetadata();
                 }
+
+                // ST 1.19 also keeps per-persona and active-persona lore links.
+                const powerUser = context.powerUserSettings;
+                if (powerUser.persona_description_lorebook === oldName) {
+                    powerUser.persona_description_lorebook = newName;
+                }
+                for (const persona of Object.values(powerUser.persona_descriptions || {})) {
+                    if (persona?.lorebook === oldName) persona.lorebook = newName;
+                }
+                const metadata = this.getMetadata();
+                if (Object.hasOwn(metadata, oldName)) {
+                    metadata[newName] = metadata[oldName];
+                    delete metadata[oldName];
+                }
+                await this.saveMetadata(metadata);
 
                 // Migrate cache entry to new name before deletion, if present
                 if (STATE.boundBooksCache && STATE.boundBooksCache.data[oldName]) {
@@ -558,7 +552,7 @@ export const API = {
                 invalidateBoundBooksCache();
             } catch (e) {
                 logger.error("Rename failed:", e);
-                toastr.error("重命名过程中出现错误: " + e.message);
+                throw e;
             } finally {
                 loader.remove();
             }

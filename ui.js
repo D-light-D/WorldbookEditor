@@ -5,6 +5,7 @@ import { CONFIG, STATE, THEME_KEY, WI_POSITION_MAP, WI_POSITION_MAP_REV } from '
 import { API } from './api.js';
 import { Actions } from './actions.js';
 import { logger } from './logger.js';
+import { setupContentEditor } from './content-editor.js';
 
 export const UI = {
     // 防抖辅助函数
@@ -161,7 +162,7 @@ export const UI = {
 
         // ESC 快捷键：优先关闭子弹窗，如果没有子弹窗则关闭主面板
         const escHandler = (e) => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' && !e.isComposing) {
                 // 检查是否有子弹窗（模态框、弹窗、下拉菜单等）
                 const subOverlays = document.querySelectorAll('.wb-modal-overlay:not(.wb-main-panel-overlay), .wb-sort-modal-overlay, #wb-content-popup-overlay, #wb-active-dropdown, #wb-gr-tag-menu-overlay');
                 const openDropdowns = document.querySelectorAll('.wb-menu-dropdown.show, .wb-gr-dropdown.show');
@@ -180,6 +181,11 @@ export const UI = {
             }
         };
         document.addEventListener('keydown', escHandler);
+        const removePanel = panel.remove.bind(panel);
+        panel.remove = () => {
+            document.removeEventListener('keydown', escHandler);
+            removePanel();
+        };
 
         $('#wb-close').onclick = async () => {
             document.removeEventListener('keydown', escHandler);
@@ -1165,7 +1171,8 @@ export const UI = {
             { v: 'after_example_messages', t: '示例消息之后' },
             { v: 'before_author_note', t: `作者注释之前` },
             { v: 'after_author_note', t: `作者注释之后` },
-            { v: 'at_depth', t: '@D' }
+            { v: 'at_depth', t: '@D' },
+            { v: 'outlet', t: 'Outlet（出口）' }
         ];
 
         const showCoreOnly = corePositions.includes(curPosStr);
@@ -1242,6 +1249,7 @@ export const UI = {
     },
 
     openContentPopup(entry, triggerBtn) {
+        const bookName = STATE.currentBookName;
         const old = document.getElementById('wb-content-popup-overlay');
         if (old) old.remove();
 
@@ -1256,9 +1264,20 @@ export const UI = {
         const escapeHtml = (str) => (str || '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[m]));
 
         popup.innerHTML = `
-            <div class="wb-popup-header"><span>${entry.comment || '未命名条目'}</span></div>
+            <div class="wb-popup-header"><span>${escapeHtml(entry.comment || '未命名条目')}</span></div>
             <input class="wb-popup-input-keys" placeholder="关键词 (英文逗号分隔)" value="${escapeHtml(tempKeys)}">
-            <textarea class="wb-popup-textarea" placeholder="在此编辑内容...">${escapeHtml(tempContent)}</textarea>
+            <div class="wb-editor-toolbar">
+                <span>内容 · 每条竖线间隔 2 列</span>
+                <label><input type="checkbox" class="wb-editor-whitespace"> 显示缩进空白</label>
+            </div>
+            <div class="wb-content-editor">
+                <div class="wb-editor-gutter" aria-hidden="true"><div></div></div>
+                <div class="wb-editor-viewport">
+                    <div class="wb-editor-decoration" aria-hidden="true"></div>
+                    <textarea class="wb-popup-textarea" aria-label="条目内容" wrap="off" spellcheck="false" placeholder="在此编辑内容...">${escapeHtml(tempContent)}</textarea>
+                </div>
+            </div>
+            <div class="wb-editor-status" aria-live="off"></div>
             <div class="wb-popup-footer"><button class="wb-btn-black btn-cancel">取消</button><button class="wb-btn-black btn-save">保存</button></div>
         `;
         overlay.appendChild(popup);
@@ -1267,17 +1286,33 @@ export const UI = {
         const keysInput = popup.querySelector('.wb-popup-input-keys');
         const textarea = popup.querySelector('.wb-popup-textarea');
         textarea.oninput = (e) => { tempContent = e.target.value; };
+        setupContentEditor(popup);
         keysInput.oninput = (e) => { tempKeys = e.target.value; };
 
         const close = () => overlay.remove();
         popup.querySelector('.btn-cancel').onclick = close;
-        popup.querySelector('.btn-save').onclick = () => {
-            Actions.updateEntry(entry.uid, d => d.content = tempContent);
-            const finalKeys = tempKeys.replace(/，/g, ',').split(',').map(s => s.trim()).filter(Boolean);
-            Actions.updateEntry(entry.uid, d => { d.key = finalKeys; });
-            this.updateCardStatus(entry.uid);
-            this.renderGlobalStats();
-            close();
+        popup.querySelector('.btn-save').onclick = async () => {
+            if (STATE.currentBookName !== bookName || !STATE.entries.includes(entry)) {
+                toastr.warning('世界书或条目已在其他位置更新，请复制当前内容后重新打开条目');
+                return;
+            }
+            const button = popup.querySelector('.btn-save');
+            button.disabled = true;
+            try {
+                const finalKeys = tempKeys.replace(/，/g, ',').split(',').map(s => s.trim()).filter(Boolean);
+                Actions.updateEntry(entry.uid, d => {
+                    d.content = textarea.value;
+                    d.key = finalKeys;
+                });
+                await Actions.flushPendingSave();
+                this.renderGlobalStats();
+                close();
+            } catch (error) {
+                logger.error('Entry save failed:', error);
+                toastr.error('保存失败，请重试：' + error.message);
+            } finally {
+                button.disabled = false;
+            }
         };
         overlay.onclick = (e) => { if (e.target === overlay) close(); };
     },
@@ -1768,12 +1803,12 @@ export const UI = {
         const priorityMap = {
             'before_character_definition': 10, 'after_character_definition': 20,
             'before_author_note': 30, 'after_author_note': 40,
-            'at_depth': 50, 'before_example_messages': 60, 'after_example_messages': 70
+            'at_depth': 50, 'before_example_messages': 60, 'after_example_messages': 70, 'outlet': 80
         };
         const typeLabels = {
             'before_character_definition': '角色定义之前', 'after_character_definition': '角色定义之后',
             'before_example_messages': '示例消息之前', 'after_example_messages': '示例消息之后',
-            'before_author_note': '作者注释之前', 'after_author_note': '作者注释之后', 'at_depth': '@D'
+            'before_author_note': '作者注释之前', 'after_author_note': '作者注释之后', 'at_depth': '@D', 'outlet': 'Outlet（出口）'
         };
 
         const sortedEntries = [...STATE.entries].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -2412,7 +2447,7 @@ export const UI = {
 
             const posMapping = {
                 0: '角色定义之前', 1: '角色定义之后', 2: 'AN 之前', 3: 'AN 之后',
-                4: '@D', 5: '示例消息之前', 6: '示例消息之后'
+                4: '@D', 5: '示例消息之前', 6: '示例消息之后', 7: 'Outlet（出口）'
             };
 
             if (activatedEntries.length === 0) {

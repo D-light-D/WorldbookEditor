@@ -5128,3 +5128,135 @@ body.wb-theme-instant.wb-theme-instant .wb-ms-tag-menu-overlay *,
 body.wb-theme-instant.wb-theme-instant .wb-tooltip {
     transition: none !important;
 }
+
+/* Entry alignment aids. Shared metrics keep native text and decorations aligned. */
+#wb-content-popup-overlay .wb-editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    color: #64748b;
+}
+#wb-content-popup-overlay .wb-editor-toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+#wb-content-popup-overlay .wb-editor-toolbar input {
+    width: auto;
+    margin: 0;
+}
+#wb-content-popup-overlay .wb-content-editor {
+    --wb-editor-guide: rgba(100, 116, 139, 0.3);
+    --wb-editor-marker: #94a3b8;
+    --wb-editor-active: rgba(59, 130, 246, 0.055);
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+    font: 14px/24px Consolas, 'Cascadia Mono', 'Noto Sans Mono CJK SC', 'Microsoft YaHei', monospace;
+    text-shadow: none;
+    letter-spacing: normal;
+    text-align: left;
+    direction: ltr;
+}
+#wb-content-popup-overlay .wb-content-editor:focus-within {
+    border-color: #42a5f5;
+}
+#wb-content-popup-overlay .wb-editor-gutter {
+    width: var(--wb-gutter-width, 3ch);
+    flex-shrink: 0;
+    overflow: hidden;
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+    color: #94a3b8;
+    text-align: right;
+    user-select: none;
+}
+#wb-content-popup-overlay .wb-editor-gutter > div {
+    padding: 10px 1ch 10px 0;
+}
+#wb-content-popup-overlay .wb-editor-gutter .active {
+    color: #2563eb;
+    font-weight: bold;
+}
+#wb-content-popup-overlay .wb-editor-viewport {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+#wb-content-popup-overlay .wb-editor-decoration {
+    box-sizing: border-box;
+    position: absolute;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+    padding: 10px;
+    pointer-events: none;
+    z-index: 2;
+}
+#wb-content-popup-overlay .wb-editor-decoration > div,
+#wb-content-popup-overlay .wb-editor-gutter > div > div {
+    height: 24px;
+}
+#wb-content-popup-overlay .wb-editor-decoration > .active {
+    background: var(--wb-editor-active);
+}
+#wb-content-popup-overlay .wb-editor-indent {
+    display: inline-block;
+    height: 24px;
+    vertical-align: top;
+    white-space: pre;
+    color: transparent;
+    background-image: repeating-linear-gradient(to right, var(--wb-editor-guide) 0, var(--wb-editor-guide) 1px, transparent 1px, transparent 2ch);
+}
+#wb-content-popup-overlay .wb-show-whitespace .wb-editor-indent {
+    color: var(--wb-editor-marker);
+}
+#wb-content-popup-overlay .wb-content-editor .wb-popup-textarea {
+    position: relative;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0 !important;
+    padding: 10px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font: inherit !important;
+    letter-spacing: normal !important;
+    line-height: 24px !important;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+    overflow-wrap: normal;
+}
+#wb-content-popup-overlay .wb-editor-status {
+    font-size: 12px;
+    color: #64748b;
+}
+[data-theme='dark'] #wb-content-popup-overlay .wb-content-editor {
+    --wb-editor-guide: rgba(235, 235, 245, 0.25);
+    --wb-editor-marker: #8d99aa;
+    --wb-editor-active: rgba(100, 160, 255, 0.08);
+    background: var(--wb-bg-1, #1c1c1e);
+    border-color: var(--wb-hairline, #38383a);
+}
+[data-theme='dark'] #wb-content-popup-overlay .wb-editor-gutter {
+    background: var(--wb-bg-2, #2c2c2e);
+    border-color: var(--wb-hairline, #38383a);
+}
+[data-theme='dark'] #wb-content-popup-overlay .wb-editor-toolbar,
+[data-theme='dark'] #wb-content-popup-overlay .wb-editor-status {
+    color: var(--wb-label-2, #b0b0b8);
+}
