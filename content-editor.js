@@ -1,10 +1,9 @@
 // Native textarea preserves undo, selection and IME; mirror measures logical lines.
-export function setupContentEditor(popup, { wrap = true } = {}) {
+export function setupContentEditor(popup, { wrap = true, showWhitespace = true } = {}) {
     const textarea = popup.querySelector('.wb-popup-textarea');
     const gutter = popup.querySelector('.wb-editor-gutter > div');
     const decoration = popup.querySelector('.wb-editor-decoration');
     const status = popup.querySelector('.wb-editor-status');
-    const toggle = popup.querySelector('.wb-editor-whitespace');
     const editor = popup.querySelector('.wb-content-editor');
     const original = textarea.value;
     let lines = original.split('\n');
@@ -78,7 +77,7 @@ export function setupContentEditor(popup, { wrap = true } = {}) {
         textarea.scrollLeft = 0;
         render();
     };
-    toggle.addEventListener('change', () => editor.classList.toggle('wb-show-whitespace', toggle.checked));
+    editor.classList.toggle('wb-show-whitespace', showWhitespace);
     textarea.addEventListener('input', () => {
         const next = textarea.value.split('\n');
         const delta = changedLineRange(lines, next);

@@ -5130,25 +5130,6 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
 }
 
 /* Entry alignment aids. Shared metrics keep native text and decorations aligned. */
-#wb-content-popup-overlay .wb-editor-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    font-size: 12px;
-    color: #64748b;
-}
-#wb-content-popup-overlay .wb-editor-toolbar label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-}
-#wb-content-popup-overlay .wb-editor-toolbar input {
-    width: auto;
-    margin: 0;
-}
 #wb-content-popup-overlay .wb-content-editor {
     --wb-editor-guide: rgba(100, 116, 139, 0.3);
     --wb-editor-marker: #94a3b8;
@@ -5295,7 +5276,6 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
     background: var(--wb-bg-2, #2c2c2e);
     border-color: var(--wb-hairline, #38383a);
 }
-[data-theme='dark'] #wb-content-popup-overlay .wb-editor-toolbar,
 [data-theme='dark'] #wb-content-popup-overlay .wb-editor-status {
     color: var(--wb-label-2, #b0b0b8);
 }
@@ -5313,28 +5293,33 @@ body.wb-theme-instant.wb-theme-instant .wb-tooltip {
 .wb-readonly .wb-card .btn-delete { pointer-events: none; opacity: 0.45; }
 .wb-readonly #wb-view-binding .wb-gr-trigger,
 .wb-readonly #wb-view-binding .wb-multi-select { pointer-events: none; opacity: 0.6; }
-.wb-popup-modes { display: flex; gap: 6px; margin-left: auto; }
 #enhanced-wb-panel-v6 .wb-book-bar > .wb-btn-circle { flex-shrink: 0; }
 #enhanced-wb-panel-v6 .wb-book-bar > .wb-gr-trigger { min-width: 0; }
-#wb-content-popup-overlay .wb-popup-modes button {
-    display: inline-flex;
-    align-items: center;
+#wb-content-popup-overlay .wb-popup-header {
+    position: relative;
     justify-content: center;
-    flex-shrink: 0;
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    border: 1px solid #e2e8f0;
-    border-radius: 50%;
-    background: #f8fafc;
+    text-align: center;
+    padding: 0 150px 5px;
+    min-height: 30px;
+}
+#wb-content-popup-overlay .wb-popup-whitespace {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: normal;
     color: #64748b;
-    font-size: 14px;
     cursor: pointer;
+    white-space: nowrap;
 }
-[data-theme='dark'] #wb-content-popup-overlay .wb-popup-modes button {
-    background: #2c2c2e;
-    border-color: #48484a;
-    color: #b0b0b8;
+#wb-content-popup-overlay .wb-popup-whitespace input { width: auto; margin: 0; }
+[data-theme='dark'] #wb-content-popup-overlay .wb-popup-whitespace { color: var(--wb-label-2, #b0b0b8); }
+@media (max-width: 600px) {
+    #wb-content-popup-overlay .wb-popup-header { flex-direction: column; gap: 8px; padding: 0 0 5px; }
+    #wb-content-popup-overlay .wb-popup-whitespace { position: static; transform: none; align-self: flex-end; }
 }
-#wb-content-popup-overlay .wb-popup-header { justify-content: space-between; gap: 10px; }
 #wb-content-popup-overlay .btn-save:disabled { opacity: 0.45; cursor: not-allowed; }

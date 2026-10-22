@@ -76,6 +76,7 @@ export const UI = {
         if (document.getElementById(CONFIG.id)) return;
         STATE.editable = false;
         STATE.wrapContent = true;
+        STATE.showWhitespace = true;
 
         const panel = document.createElement('div');
         panel.id = CONFIG.id;
@@ -1295,12 +1296,8 @@ export const UI = {
         const escapeHtml = (str) => (str || '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[m]));
 
         popup.innerHTML = `
-            <div class="wb-popup-header"><span>${escapeHtml(entry.comment || '未命名条目')}</span></div>
+            <div class="wb-popup-header"><span>${escapeHtml(entry.comment || '未命名条目')}</span><label class="wb-popup-whitespace"><input type="checkbox" ${STATE.showWhitespace ? 'checked' : ''}> 显示缩进空白</label></div>
             <input class="wb-popup-input-keys" placeholder="关键词 (英文逗号分隔)" value="${escapeHtml(tempKeys)}">
-            <div class="wb-editor-toolbar">
-                <span>内容 · 每条竖线间隔 2 列</span>
-                <label><input type="checkbox" class="wb-editor-whitespace"> 显示缩进空白</label>
-            </div>
             <div class="wb-content-editor">
                 <div class="wb-editor-gutter" aria-hidden="true"><div></div></div>
                 <div class="wb-editor-viewport">
@@ -1320,23 +1317,10 @@ export const UI = {
         textarea.readOnly = !STATE.editable;
         keysInput.readOnly = !STATE.editable;
         popup.querySelector('.btn-save').disabled = !STATE.editable;
-        const editor = setupContentEditor(popup, { wrap: STATE.wrapContent });
-        const modeBar = document.createElement('div');
-        modeBar.className = 'wb-popup-modes';
-        // The same modes remain accessible while the modal covers the book bar.
-        modeBar.innerHTML = `<button type="button" class="wb-btn-circle wb-editor-mode" aria-label="允许修改世界书" aria-pressed="${STATE.editable}" title="切换只读 / 可写"><i class="fa-solid fa-${STATE.editable ? 'lock-open' : 'lock'}"></i></button><button type="button" class="wb-btn-circle wb-editor-mode" aria-label="横向滚动" aria-pressed="${!STATE.wrapContent}" title="切换自动换行 / 横向滚动"><i class="fa-solid fa-align-left"></i></button>`;
-        popup.querySelector('.wb-popup-header').appendChild(modeBar);
-        modeBar.children[0].onclick = async () => {
-            await document.querySelector('#btn-wb-write').onclick();
-            textarea.readOnly = keysInput.readOnly = !STATE.editable;
-            popup.querySelector('.btn-save').disabled = !STATE.editable;
-            modeBar.children[0].setAttribute('aria-pressed', String(STATE.editable));
-            modeBar.children[0].innerHTML = `<i class="fa-solid fa-${STATE.editable ? 'lock-open' : 'lock'}"></i>`;
-        };
-        modeBar.children[1].onclick = () => {
-            document.querySelector('#btn-wb-wrap').onclick();
-            modeBar.children[1].setAttribute('aria-pressed', String(!STATE.wrapContent));
-            editor.setWrap(STATE.wrapContent);
+        setupContentEditor(popup, { wrap: STATE.wrapContent, showWhitespace: STATE.showWhitespace });
+        popup.querySelector('.wb-popup-whitespace input').onchange = (event) => {
+            STATE.showWhitespace = event.target.checked;
+            popup.querySelector('.wb-content-editor').classList.toggle('wb-show-whitespace', STATE.showWhitespace);
         };
         keysInput.oninput = (e) => { tempKeys = e.target.value; };
 
@@ -1351,7 +1335,7 @@ export const UI = {
             const button = popup.querySelector('.btn-save');
             button.disabled = true;
             try {
-                const confirmed = await Popup.show.confirm('确认修改条目', '确定保存本次内容和关键词修改吗？');
+                const confirmed = await Popup.show.confirm('确认修改条目');
                 if (confirmed !== POPUP_RESULT.AFFIRMATIVE) return;
                 const finalKeys = tempKeys.replace(/，/g, ',').split(',').map(s => s.trim()).filter(Boolean);
                 Actions.updateEntry(entry.uid, d => {
