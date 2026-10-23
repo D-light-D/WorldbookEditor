@@ -1,13 +1,13 @@
 /* Worldbook activation records */
-#wb-view-activation { --wa-accent: #7760b2; --wa-soft: #f4f0fa; --wa-line: #e8e8ee; --wa-muted: #777583; --wa-surface: #fff; --wa-ink: #32323e; padding: 22px 4px 0; color: var(--wa-ink); }
-#wb-view-activation .wb-activation-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+#wb-view-activation { --wa-accent: #7760b2; --wa-soft: #f4f0fa; --wa-line: #e8e8ee; --wa-muted: #777583; --wa-surface: #fff; --wa-ink: #32323e; padding: 12px 4px 0; color: var(--wa-ink); }
+#wb-view-activation .wb-activation-header { display: flex; align-items: center; gap: 10px; padding-bottom: 14px; border-bottom: 1px solid var(--wa-line); }
 #wb-view-activation .wb-activation-eyebrow { font-size: 11px; color: var(--wa-muted); letter-spacing: .08em; margin-bottom: 6px; }
-#wb-view-activation h2 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.04em; color: inherit; }
-#wb-view-activation .wb-activation-count { display: flex; align-items: baseline; gap: 8px; color: var(--wa-muted); font-size: 12px; }
+#wb-view-activation h2 { margin: 0; font-size: 17px; font-weight: 600; color: inherit; }
+#wb-view-activation .wb-activation-count { color: var(--wa-accent); background: var(--wa-soft); padding: 3px 8px; border-radius: 6px; font-size: 11px; }
 #wb-view-activation .wb-activation-count strong { color: var(--wa-accent); font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
-#wb-view-activation .wb-activation-meta { display: flex; gap: 8px; align-items: center; color: var(--wa-muted); font-size: 12px; margin-top: 12px; flex-wrap: wrap; }
+#wb-view-activation .wb-activation-meta { margin-left: auto; color: var(--wa-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 #wb-view-activation .wb-activation-meta-dot { opacity: .5; }
-#wb-view-activation .wb-activation-tools { display: flex; gap: 16px; justify-content: space-between; align-items: center; padding: 22px 0 20px; }
+#wb-view-activation .wb-activation-tools { display: flex; gap: 16px; justify-content: space-between; align-items: center; padding: 14px 0; }
 #wb-view-activation .wb-activation-search { display: flex; gap: 10px; align-items: center; border: 1px solid var(--wa-line); background: var(--wa-surface); border-radius: 10px; padding: 0 13px; flex: 1; max-width: 410px; color: var(--wa-muted); }
 #wb-view-activation .wb-activation-search:focus-within { border-color: var(--wa-accent); box-shadow: 0 0 0 3px var(--wa-soft); }
 #wb-view-activation .wb-activation-search input { width: 100%; min-width: 0; border: 0; outline: 0; box-shadow: none; background: transparent; color: var(--wa-ink); padding: 11px 0; margin: 0; font: inherit; font-size: 13px; }
@@ -21,8 +21,8 @@
 #wb-view-activation .wb-activation-book { display: flex; gap: 9px; align-items: center; font-size: 12px; font-weight: 600; margin: 0 0 10px; color: var(--wa-muted); }
 #wb-view-activation .wb-activation-book > span:first-of-type { overflow-wrap: anywhere; }
 #wb-view-activation .wb-activation-book-count { margin-left: auto; font-weight: 400; flex-shrink: 0; }
-#wb-view-activation .wb-activation-row { background: var(--wa-surface); border: 1px solid var(--wa-line); border-radius: 11px; margin-bottom: 8px; overflow: hidden; }
-#wb-view-activation .wb-activation-row > summary { display: flex; align-items: center; gap: 14px; padding: 17px 18px; list-style: none; cursor: pointer; }
+#wb-view-activation .wb-activation-row { background: var(--wa-surface); border-bottom: 1px solid var(--wa-line); overflow: hidden; }
+#wb-view-activation .wb-activation-row > summary { display: flex; align-items: center; gap: 14px; padding: 14px 10px; list-style: none; cursor: pointer; }
 #wb-view-activation .wb-activation-row > summary::-webkit-details-marker { display: none; }
 #wb-view-activation .wb-activation-row > summary:hover { background: var(--wa-soft); }
 #wb-view-activation .wb-activation-identity { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; }
@@ -35,6 +35,7 @@
 #wb-view-activation .wb-activation-row[open] .wb-activation-chevron { transform: rotate(180deg); }
 #wb-view-activation .wb-activation-body { padding: 4px 18px 18px; border-top: 1px solid var(--wa-line); }
 #wb-view-activation .wb-activation-condition { font-size: 12px; line-height: 1.7; color: var(--wa-accent); margin-top: 10px; overflow-wrap: anywhere; }
+#wb-view-activation .wb-activation-output-note { color: var(--wa-muted); font-size: 13px; padding: 12px 0; }
 #wb-view-activation .wb-activation-content-label { font-size: 11px; color: var(--wa-muted); margin: 14px 0 8px; }
 #wb-view-activation pre { font: 13px/1.8 Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: inherit; background: var(--wa-soft); border-radius: 8px; padding: 14px; margin: 0; max-height: 340px; overflow: auto; }
 #wb-view-activation .wb-activation-footer { display: flex; align-items: baseline; gap: 20px; justify-content: space-between; border-top: 1px solid var(--wa-line); padding: 13px 0 2px; font-size: 11px; color: var(--wa-muted); }

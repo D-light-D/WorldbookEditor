@@ -57,11 +57,15 @@ export function createActivationRecorder() {
                 }),
             }));
         },
-        capture(chatKey) {
+        pendingEntries() { return pending ? clone(pending.entries) : []; },
+        capture(chatKey, outputs) {
             if (!pending || pending.chatKey !== chatKey) return null;
             const snapshot = clone({
                 timestamp: Date.now(), type: pending.type,
-                entries: pending.entries, scanned: pending.scanned,
+                entries: pending.entries.map((entry, index) => ({ ...entry,
+                    content: outputs?.[index]?.content ?? '',
+                    outputStatus: outputs?.[index]?.outputStatus ?? 'unresolved',
+                })), scanned: pending.scanned,
             });
             snapshots.delete(chatKey);
             snapshots.set(chatKey, snapshot);

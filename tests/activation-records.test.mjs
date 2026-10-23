@@ -11,11 +11,11 @@ test('retains only final activations, isolates duplicate UIDs across books and s
     header(r, entry()); r.debug(['[WI] Entry 0', 'activated by primary key match', '/hello/i']);
     header(r, entry('discarded')); r.debug(['[WI] Entry 0', 'activated by primary key match', 'budget failure']);
     const input = entry(); r.activated([input]); input.content = 'changed';
-    r.capture('chat');
+    r.capture('chat', [{ content: 'rendered', outputStatus: 'sent' }]);
     const result = r.get('chat');
     assert.equal(result.entries.length, 1);
     assert.equal(result.entries[0].diagnostic.primary, '/hello/i');
-    assert.equal(result.entries[0].content, '<script>literal</script>');
+    assert.equal(result.entries[0].content, 'rendered');
     assert.deepEqual(Object.keys(result).sort(), ['entries', 'scanned', 'timestamp', 'type']);
     result.entries.length = 0; assert.equal(r.get('chat').entries.length, 1);
 });

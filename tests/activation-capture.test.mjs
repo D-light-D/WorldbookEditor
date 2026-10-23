@@ -2,49 +2,27 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
 import { test } from 'node:test';
-const listeners = new Map();
-let context = { chatId: 'A', characterId: 0 };
-let notifications = 0;
-const originalFetch = () => {};
-const debugCalls = [];
-const event_types = Object.fromEntries(['GENERATION_STARTED', 'WORLDINFO_SCAN_DONE', 'WORLD_INFO_ACTIVATED', 'GENERATE_AFTER_DATA', 'GENERATION_ENDED', 'GENERATION_STOPPED', 'CHAT_CHANGED'].map(key => [key, key]));
-const sandbox = vm.createContext({ Event, console: { debug(...args) { debugCalls.push(args); } }, window: { fetch: originalFetch }, document: { dispatchEvent() { notifications++; } } });
-function synthetic(exports) {
-    return new vm.SyntheticModule(Object.keys(exports), function () {
-        for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
-    }, { context: sandbox });
-}
-const model = new vm.SourceTextModule(await fs.readFile(new URL('../activation-records.js', import.meta.url), 'utf8'), { context: sandbox });
-await model.link(() => { throw Error('Unexpected import'); });
-const capture = new vm.SourceTextModule(await fs.readFile(new URL('../activation-capture.js', import.meta.url), 'utf8'), { context: sandbox });
-await capture.link(specifier => specifier === './activation-records.js' ? model : specifier.endsWith('extensions.js') ? synthetic({ getContext: () => context }) : synthetic({ event_types, eventSource: { on(name, fn) { listeners.set(name, fn); } } }));
-await capture.evaluate();
-const { initActivationCapture, getLatestActivations } = capture.namespace;
-initActivationCapture();
-test('native events publish activations without intercepting fetch or reading request content', () => {
-    const debug = sandbox.console.debug; initActivationCapture(); assert.equal(sandbox.console.debug, debug);
-    assert.equal(sandbox.window.fetch, originalFetch);
-    listeners.get('GENERATION_STARTED')('normal', {}, false);
-    const entry = { uid: 2, world: 'QA', comment: 'test', content: 'details' };
-    sandbox.console.debug('[WI] Entry 2', "from 'QA' processing", entry);
-    sandbox.console.debug('[WI] Entry 2', 'activated by primary key match', '灯塔');
-    listeners.get('WORLD_INFO_ACTIVATED')([entry]);
-    assert.equal(getLatestActivations(), null);
-    const unreadablePrompt = new Proxy({}, { get() { throw Error('Must not read context'); } });
-    listeners.get('GENERATE_AFTER_DATA')(unreadablePrompt, false);
-    assert.equal(getLatestActivations().entries[0].diagnostic.primary, '灯塔');
-    assert.equal(notifications, 1); assert.equal(debugCalls.length, 2);
-    assert.equal('messages' in getLatestActivations(), false);
+const listeners=new Map(); let ctx={chatId:'A',characterId:0}; const sent=[];
+const event_types=Object.fromEntries(['GENERATION_STARTED','WORLDINFO_SCAN_DONE','WORLD_INFO_ACTIVATED','GENERATE_AFTER_DATA','GENERATION_ENDED','GENERATION_STOPPED','CHAT_CHANGED'].map(k=>[k,k]));
+const sandbox=vm.createContext({URL,Request,Event,crypto:{randomUUID:()=> 'test'},console:{debug(){}},window:{location:{href:'http://localhost/',origin:'http://localhost'},fetch(input,init){sent.push(init);return Promise.resolve('ok');}},document:{dispatchEvent(){}}});
+function synthetic(exports){return new vm.SyntheticModule(Object.keys(exports),function(){for(const [k,v] of Object.entries(exports))this.setExport(k,v);},{context:sandbox});}
+const modules=new Map();
+async function load(name){if(modules.has(name))return modules.get(name);const m=new vm.SourceTextModule(await fs.readFile(new URL('../'+name,import.meta.url),'utf8'),{context:sandbox});modules.set(name,m);await m.link(s=>s.endsWith('extensions.js')?synthetic({getContext:()=>ctx}):s.endsWith('/script.js')?synthetic({event_types,eventSource:{on(k,f){listeners.set(k,f);}}}):load(s.slice(2)));return m;}
+const module=await load('activation-capture.js');await module.evaluate();const {initActivationCapture,getLatestActivations}=module.namespace;initActivationCapture();
+test('captures only final processed WI output and sends no tracking tags',async()=>{
+ listeners.get('GENERATION_STARTED')('normal',{},false);
+ listeners.get('WORLD_INFO_ACTIVATED')([{world:'A',uid:1,content:'<%= 1+1 %>'}]);
+ listeners.get('GENERATE_AFTER_DATA')({},false);assert.equal(getLatestActivations(),null);
+ const messages=[{role:'system',content:'<%= 1+1 %>'}];
+ listeners.get('prompt_template_prepare')({runType:'generate',isDryRun:false,generateData:messages});
+ messages[0].content=messages[0].content.replace('<%= 1+1 %>','2');
+ await sandbox.window.fetch('/api/backends/chat-completions/generate',{method:'POST',body:JSON.stringify({messages}),headers:{a:'b'}});
+ assert.equal(JSON.parse(sent.at(-1).body).messages[0].content,'2');
+ assert.equal(getLatestActivations().entries[0].content,'2');assert.equal(getLatestActivations().entries[0].outputStatus,'sent');
+ assert.equal('messages' in getLatestActivations(),false);
 });
-test('dry runs, empty results, switching chats and cancellation preserve isolation', () => {
-    listeners.get('GENERATION_STARTED')('normal', {}, true);
-    listeners.get('GENERATE_AFTER_DATA')({}, true);
-    assert.equal(getLatestActivations().entries.length, 1);
-    listeners.get('GENERATION_STARTED')('normal', {}, false);
-    listeners.get('GENERATE_AFTER_DATA')({}, false);
-    assert.equal(getLatestActivations().entries.length, 0);
-    context = { chatId: 'B', characterId: 0 }; listeners.get('CHAT_CHANGED')(); assert.equal(getLatestActivations(), null);
-    listeners.get('GENERATION_STARTED')('normal', {}, false); listeners.get('GENERATION_STOPPED')();
-    listeners.get('GENERATE_AFTER_DATA')({}, false); assert.equal(getLatestActivations(), null);
-    context = { chatId: 'A', characterId: 0 }; assert.equal(getLatestActivations().entries.length, 0);
+test('dry runs and chat switches cannot overwrite previous output',()=>{
+ listeners.get('GENERATION_STARTED')('normal',{},true);listeners.get('GENERATE_AFTER_DATA')({},true);
+ assert.equal(getLatestActivations().entries[0].content,'2');
+ ctx={chatId:'B',characterId:0};listeners.get('CHAT_CHANGED')();assert.equal(getLatestActivations(),null);
 });

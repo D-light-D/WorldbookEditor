@@ -18,7 +18,6 @@ function empty(title, description, name = 'book-open') {
     node.append(mark, el('h3', '', title), el('p', '', description));
     return node;
 }
-const modes = { normal: '发送消息', swipe: '重新生成', regenerate: '重新生成', continue: '继续生成', quiet: '后台生成', impersonate: '代写消息' };
 function triggerLabel(entry) {
     if (entry.diagnostic.primary !== null) return entry.diagnostic.primary;
     const reason = entry.diagnostic.reason;
@@ -32,11 +31,11 @@ export function renderActivations() {
     const snapshot = getLatestActivations();
     const header = el('header', 'wb-activation-header');
     const heading = el('div');
-    heading.append(el('div', 'wb-activation-eyebrow', '世界书 · 最近一次生成'), el('h2', '', '激活记录'));
+    heading.append(el('h2', '', '激活条目'));
     header.append(heading);
     if (snapshot) {
         const count = el('div', 'wb-activation-count');
-        count.append(el('strong', '', String(snapshot.entries.length)), el('span', '', '条已激活'));
+        count.append(el('span', '', `${snapshot.entries.length} 条`));
         header.append(count);
     }
     root.append(header);
@@ -44,10 +43,10 @@ export function renderActivations() {
         root.append(empty('还没有激活记录', '发送一条消息后，在这里查看激活的条目与触发关键词。'));
         return;
     }
-    const books = new Set(snapshot.entries.map(entry => entry.world));
     const meta = el('div', 'wb-activation-meta');
-    meta.append(icon('clock'), el('span', '', new Date(snapshot.timestamp).toLocaleString()), el('span', 'wb-activation-meta-dot', '·'), el('span', '', `${books.size} 本世界书`), el('span', 'wb-activation-meta-dot', '·'), el('span', '', modes[snapshot.type] || '生成记录'));
-    root.append(meta);
+    meta.append(el('span', '', new Date(snapshot.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })));
+    meta.title = new Date(snapshot.timestamp).toLocaleString();
+    header.append(meta);
     const tools = el('div', 'wb-activation-tools');
     const searchBox = el('div', 'wb-activation-search');
     const search = el('input');
@@ -78,7 +77,7 @@ export function renderActivations() {
     const resultCount = el('span');
     resultCount.setAttribute('aria-live', 'polite');
     const help = el('details', 'wb-activation-help');
-    help.append(el('summary', '', '记录说明'), el('p', '', '记录仅保留在本次页面会话中。主关键词显示扫描采用的首个匹配；辅助排除条件不代表关键词命中。激活列表已通过概率与预算检查，后续提示词裁剪仍可能移除内容，Outlet 条目需对应插槽使用。'));
+    help.append(el('summary', '', '说明'), el('p', '', '内容取自浏览器发出的生成请求。表达式只由原扩展执行一次；无法准确归属的片段不会以条目原文代替。服务端仍可能继续处理请求。记录刷新后清除。'));
     footer.append(resultCount, help);
     root.append(tools, list, footer);
     function renderList() {
@@ -110,6 +109,7 @@ export function renderActivations() {
                 const summary = el('summary');
                 const identity = el('div', 'wb-activation-identity');
                 identity.append(el('span', 'wb-activation-entry-title', entry.title), el('span', 'wb-activation-uid', `#${entry.uid}`));
+                if (entry.outputStatus === 'empty') identity.append(el('span', 'wb-activation-uid', '无输出'));
                 const triggered = entry.diagnostic.primary !== null;
                 const badge = el('span', `wb-activation-trigger${triggered ? ' is-keyword' : ''}`);
                 badge.title = triggered ? `首个命中的主关键词：${entry.diagnostic.primary}` : entry.diagnostic.reason || '未获取到触发详情';
@@ -123,7 +123,9 @@ export function renderActivations() {
                 if (entry.diagnostic.reason) body.append(el('div', 'wb-activation-condition', entry.diagnostic.reason));
                 if (entry.diagnostic.secondary.length) body.append(el('div', 'wb-activation-condition', `辅助条件关键词：${entry.diagnostic.secondary.join('、')}`));
                 if (entry.position === 7) body.append(el('div', 'wb-activation-condition', 'Outlet 条目 · 由对应插槽使用'));
-                body.append(el('div', 'wb-activation-content-label', '条目内容'), el('pre', '', entry.content || '（空内容）'));
+                body.append(el('div', 'wb-activation-content-label', '发送内容'));
+                if (entry.outputStatus === 'sent') body.append(el('pre', '', entry.content));
+                else body.append(el('p', 'wb-activation-output-note', entry.outputStatus === 'empty' ? '本条目执行后无文本输出。' : '未能从最终请求中准确定位此条目的内容。'));
                 row.append(body);
                 group.append(row);
             }
