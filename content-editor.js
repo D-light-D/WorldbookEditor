@@ -6,9 +6,18 @@ export function setupContentEditor(popup, { wrap = true, showWhitespace = true }
     const status = popup.querySelector('.wb-editor-status');
     const editor = popup.querySelector('.wb-content-editor');
     const original = textarea.value;
-    let lines = original.split('\n');
-    let changed = lines.map(() => false);
-    let activeLine = -1;
+    let lines = [];
+    let changed = [];
+    const numbers = [];
+    const rows = [];
+    let activeRow = null;
+    let activeNumber = null;
+    let frame = 0;
+    let disposed = false;
+    let fullLayout = true;
+    let measuredWidth = -1;
+    let gutterDigits = 0;
+    let renderedValue = null;
     const syncScroll = () => {
         gutter.style.transform = `translateY(${-textarea.scrollTop}px)`;
         decoration.style.transform = `translate(${-textarea.scrollLeft}px, ${-textarea.scrollTop}px)`;
@@ -19,83 +28,138 @@ export function setupContentEditor(popup, { wrap = true, showWhitespace = true }
         const prefix = before.slice(before.lastIndexOf('\n') + 1);
         const indent = lines[row]?.match(/^[\t ]*/)[0] || '';
         const tabs = (indent.match(/\t/g) || []).length;
-        status.textContent = `第 ${row + 1} 行，第 ${visualWidth(prefix) + 1} 列 · 缩进：${indent.length - tabs} 空格，${tabs} Tab · 蓝色：光标行 / 橙色：已修改`;
-        if (row !== activeLine) {
-            gutter.children[activeLine]?.classList.remove('active');
-            decoration.children[activeLine]?.classList.remove('active');
-            gutter.children[row]?.classList.add('active');
-            decoration.children[row]?.classList.add('active');
-            activeLine = row;
+        const label = `第 ${row + 1} 行，第 ${visualWidth(prefix) + 1} 列 · 缩进：${indent.length - tabs} 空格，${tabs} Tab · 蓝色：光标行 / 橙色：已修改`;
+        if (status.textContent !== label) status.textContent = label;
+        if (rows[row] !== activeRow || numbers[row] !== activeNumber) {
+            activeRow?.classList.remove('active');
+            activeNumber?.classList.remove('active');
+            activeRow = rows[row];
+            activeNumber = numbers[row];
+            activeRow?.classList.add('active');
+            activeNumber?.classList.add('active');
         }
         syncScroll();
     };
-    const layout = () => {
-        decoration.style.width = `${textarea.clientWidth}px`;
-        decoration.style.minWidth = '0';
-        for (let i = 0; i < lines.length; i++) {
-            gutter.children[i].style.height = `${decoration.children[i].offsetHeight}px`;
-        }
-        syncScroll();
+    const updateRow = (row, text) => {
+        row.children[0].textContent = text || '\u200b';
+        const indent = text.match(/^[\t ]*/)[0];
+        const guide = row.children[1];
+        guide.style.width = `${visualWidth(indent)}ch`;
+        let width = 0;
+        guide.textContent = Array.from(indent, char => {
+            const size = char === '\t' ? 4 - width % 4 : 1;
+            width += size;
+            return char === '\t' ? '→' + ' '.repeat(size - 1) : '·';
+        }).join('');
     };
     const render = () => {
-        const numbers = document.createDocumentFragment();
-        const rows = document.createDocumentFragment();
-        for (let i = 0; i < lines.length; i++) {
-            const number = document.createElement('div');
-            number.textContent = i + 1;
-            number.classList.toggle('modified', changed[i]);
-            numbers.appendChild(number);
-            const row = document.createElement('div');
-            row.classList.toggle('modified', changed[i]);
-            const measure = document.createElement('span');
-            measure.className = 'wb-editor-measure';
-            measure.textContent = lines[i] || '\u200b';
-            row.appendChild(measure);
-            const indent = lines[i].match(/^[\t ]*/)[0];
-            const guide = document.createElement('span');
-            guide.className = 'wb-editor-indent';
-            guide.style.width = `${visualWidth(indent)}ch`;
-            let width = 0;
-            guide.textContent = Array.from(indent, char => {
-                const size = char === '\t' ? 4 - width % 4 : 1;
-                width += size;
-                return char === '\t' ? '→' + ' '.repeat(size - 1) : '·';
-            }).join('');
-            row.appendChild(guide);
-            rows.appendChild(row);
+        frame = 0;
+        if (disposed) return;
+        let measureStart = 0;
+        let measureEnd = 0;
+        if (renderedValue !== textarea.value) {
+            const value = textarea.value;
+            const next = value.split('\n');
+            const delta = changedLineRange(lines, next);
+            const replacement = next.slice(delta.start, delta.start + delta.added).map((line, offset) =>
+                offset < delta.removed && line === lines[delta.start + offset] ? changed[delta.start + offset] : true);
+            changed.splice(delta.start, delta.removed, ...replacement);
+            if (!delta.added && delta.removed) changed[Math.min(delta.start, next.length - 1)] = true;
+            const reset = value === original;
+            if (reset) changed = next.map(() => false);
+            const reused = Math.min(delta.removed, delta.added);
+            for (let i = delta.start + reused; i < delta.start + delta.removed; i++) {
+                rows[i].remove();
+                numbers[i].remove();
+            }
+            rows.splice(delta.start + reused, delta.removed - reused);
+            numbers.splice(delta.start + reused, delta.removed - reused);
+            const newRows = [];
+            const newNumbers = [];
+            const rowFragment = document.createDocumentFragment();
+            const numberFragment = document.createDocumentFragment();
+            for (let i = reused; i < delta.added; i++) {
+                const row = document.createElement('div');
+                const measure = document.createElement('span');
+                measure.className = 'wb-editor-measure';
+                const guide = document.createElement('span');
+                guide.className = 'wb-editor-indent';
+                row.append(measure, guide);
+                const number = document.createElement('div');
+                newRows.push(row);
+                newNumbers.push(number);
+                rowFragment.appendChild(row);
+                numberFragment.appendChild(number);
+            }
+            decoration.insertBefore(rowFragment, rows[delta.start + reused] || null);
+            gutter.insertBefore(numberFragment, numbers[delta.start + reused] || null);
+            rows.splice(delta.start + reused, 0, ...newRows);
+            numbers.splice(delta.start + reused, 0, ...newNumbers);
+            for (let i = delta.start; i < delta.start + delta.added; i++) updateRow(rows[i], next[i]);
+            // Renumber the suffix only when line count changes. Ordinary typing
+            // touches one row, with no replacement of unaffected DOM nodes.
+            if (delta.added !== delta.removed) {
+                for (let i = delta.start; i < next.length; i++) numbers[i].textContent = i + 1;
+            }
+            const classStart = reset ? 0 : Math.min(delta.start, next.length - 1);
+            const classEnd = reset ? next.length : Math.min(next.length, delta.start + Math.max(delta.added, 1));
+            for (let i = classStart; i < classEnd; i++) {
+                rows[i].classList.toggle('modified', changed[i]);
+                numbers[i].classList.toggle('modified', changed[i]);
+            }
+            lines = next;
+            renderedValue = value;
+            measureStart = delta.start;
+            measureEnd = delta.start + delta.added;
+            const digits = String(lines.length).length;
+            if (digits !== gutterDigits) {
+                gutterDigits = digits;
+                editor.style.setProperty('--wb-gutter-width', `${digits + 2}ch`);
+                fullLayout = true;
+            }
         }
-        gutter.replaceChildren(numbers);
-        decoration.replaceChildren(rows);
-        editor.style.setProperty('--wb-gutter-width', `${String(lines.length).length + 2}ch`);
-        activeLine = -1;
-        layout();
+        const width = textarea.clientWidth;
+        if (width !== measuredWidth) {
+            measuredWidth = width;
+            decoration.style.width = `${width}px`;
+            decoration.style.minWidth = '0';
+            fullLayout = true;
+        }
+        if (fullLayout) { measureStart = 0; measureEnd = rows.length; }
+        // Batch all layout reads BEFORE any height writes: no per-line reflow.
+        const heights = [];
+        for (let i = measureStart; i < measureEnd; i++) heights.push(rows[i].offsetHeight);
+        for (let i = measureStart; i < measureEnd; i++) {
+            const height = `${heights[i - measureStart]}px`;
+            if (numbers[i].style.height !== height) numbers[i].style.height = height;
+        }
+        fullLayout = false;
         updatePosition();
+    };
+    const schedule = () => {
+        if (!disposed && !frame) frame = requestAnimationFrame(render);
     };
     const setWrap = value => {
         textarea.wrap = value ? 'soft' : 'off';
         editor.classList.toggle('wb-editor-wrapped', value);
         textarea.scrollLeft = 0;
-        render();
+        fullLayout = true;
+        schedule();
     };
     editor.classList.toggle('wb-show-whitespace', showWhitespace);
-    textarea.addEventListener('input', () => {
-        const next = textarea.value.split('\n');
-        const delta = changedLineRange(lines, next);
-        const replacement = next.slice(delta.start, delta.start + delta.added).map((line, offset) =>
-            offset < delta.removed && line === lines[delta.start + offset] ? changed[delta.start + offset] : true);
-        changed.splice(delta.start, delta.removed, ...replacement);
-        if (!delta.added && delta.removed) changed[Math.min(delta.start, next.length - 1)] = true;
-        if (textarea.value === original) changed = next.map(() => false);
-        lines = next;
-        render();
-    });
-    for (const event of ['click', 'keyup', 'select', 'focus']) textarea.addEventListener(event, updatePosition);
+    textarea.addEventListener('input', schedule);
+    for (const event of ['click', 'keyup', 'select', 'focus']) textarea.addEventListener(event, schedule);
     textarea.addEventListener('scroll', syncScroll);
-    const resizeObserver = new ResizeObserver(layout);
+    const resizeObserver = new ResizeObserver(() => { fullLayout = true; schedule(); });
     resizeObserver.observe(textarea);
     const overlay = popup.parentElement;
     const remove = overlay.remove.bind(overlay);
-    overlay.remove = () => { resizeObserver.disconnect(); remove(); };
+    overlay.remove = () => {
+        disposed = true;
+        cancelAnimationFrame(frame);
+        resizeObserver.disconnect();
+        remove();
+    };
     setWrap(wrap);
     return { setWrap };
 }
