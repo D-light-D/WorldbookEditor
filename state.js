@@ -16,7 +16,7 @@ export const STATE = {
     editable: false,
     wrapContent: true,
     showWhitespace: true,
-    currentView: 'editor', // 'editor' | 'binding' | 'manage'
+    currentView: 'editor', // 'editor' | 'binding' | 'manage' | 'context'
     currentBookName: null,
 
     isInitialized: false,

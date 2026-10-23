@@ -1,3 +1,33 @@
+/* Latest browser request and native WI activation evidence. */
+#enhanced-wb-panel-v6 .wb-request-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#enhanced-wb-panel-v6 .wb-request-toolbar > span { flex: 1; font-size: .85em; }
+#enhanced-wb-panel-v6 .wb-request-toolbar button { border: 1px solid #d6dce5; background: #f5f3fb; color: #6351ad; border-radius: 9px; padding: 7px 12px; cursor: pointer; font: inherit; font-size: .85em; }
+#enhanced-wb-panel-v6 .wb-request-toolbar button:hover { background: #e9e3f7; }
+#enhanced-wb-panel-v6 .wb-request-toolbar button:focus-visible { outline: 2px solid #8b76c8; outline-offset: 2px; }
+#enhanced-wb-panel-v6 .wb-request-note { font-size: .82em; opacity: .75; line-height: 1.6; overflow-wrap: anywhere; }
+#enhanced-wb-panel-v6 .wb-request-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; overflow: auto; }
+#enhanced-wb-panel-v6 .wb-request-layout > section { min-width: 0; min-height: 0; overflow: auto; padding-right: 5px; }
+#enhanced-wb-panel-v6 .wb-request-layout h3 { margin: 5px 0 14px; font-size: 1em; }
+#enhanced-wb-panel-v6 .wb-request-card { border: 1px solid #d6dce5; background: #f8f9fc; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+#enhanced-wb-panel-v6 .wb-request-card-title { font-weight: 650; overflow-wrap: anywhere; margin-bottom: 8px; }
+#enhanced-wb-panel-v6 .wb-request-card pre { white-space: pre-wrap; overflow-wrap: anywhere; font-family: Consolas, monospace; font-size: .88em; line-height: 1.65; margin: 8px 0 0; color: inherit; background: transparent; }
+#enhanced-wb-panel-v6 .wb-request-keyword { margin: 8px 0; color: #6351ad; overflow-wrap: anywhere; }
+#enhanced-wb-panel-v6 .wb-request-reason { font-size: .85em; margin-top: 8px; }
+#enhanced-wb-panel-v6 .wb-request-entry-content { margin-top: 12px; font-size: .9em; }
+#enhanced-wb-panel-v6 .wb-request-empty { margin: auto; max-width: 480px; text-align: center; line-height: 1.9; opacity: .7; }
+[data-theme='dark'] #enhanced-wb-panel-v6 .wb-request-card { background: #232329; border-color: #41414c; }
+[data-theme='dark'] #enhanced-wb-panel-v6 .wb-request-keyword { color: #c6b6ff; }
+[data-theme='dark'] #enhanced-wb-panel-v6 .wb-request-toolbar button { background: #302b40; border-color: #544968; color: #d0c1ff; }
+@media (max-width: 700px) {
+    #enhanced-wb-panel-v6 .wb-header-bar { padding-right: 32px; }
+    #enhanced-wb-panel-v6 .wb-tabs { max-width: 100%; }
+    #enhanced-wb-panel-v6 .wb-tabs .wb-tab { padding: 6px 8px !important; font-size: .78em !important; white-space: nowrap; gap: 3px; }
+    #enhanced-wb-panel-v6 .wb-request-layout { grid-template-columns: minmax(0, 1fr); display: block; }
+    #enhanced-wb-panel-v6 .wb-request-layout > section { overflow: visible; }
+}
+@media (max-width: 410px) {
+    #enhanced-wb-panel-v6 .wb-tabs .wb-tab i { display: none; }
+}
 :root {
   --wb-sort-group-title-color-1: ;
 }

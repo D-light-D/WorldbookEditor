@@ -6,6 +6,11 @@ import { CONFIG } from './state.js';
 import { Actions } from './actions.js';
 import { UI } from './ui.js';
 import { logger } from './logger.js';
+import { initContextCapture, CONTEXT_UPDATED } from './request-context-capture.js';
+import { renderLatestContext } from './request-context-view.js';
+
+initContextCapture();
+document.addEventListener(CONTEXT_UPDATED, renderLatestContext);
 
 jQuery(async () => {
 
