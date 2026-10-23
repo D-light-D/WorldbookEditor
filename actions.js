@@ -228,8 +228,8 @@ export const Actions = {
 
             if (viewName === 'binding') {
                 UI.renderBindingView();
-            } else if (viewName === 'context') {
-                UI.renderLatestContext();
+            } else if (viewName === 'activation') {
+                UI.renderActivations();
             } else if (viewName === 'manage') {
                 // 修复一：确保视图显示后再计算滑块位置
                 UI.updateManageGlider(STATE.manageTab);

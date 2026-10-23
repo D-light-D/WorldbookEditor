@@ -1,8 +1,8 @@
-// Keep only request content and WI diagnostics, never connection settings or headers.
+// Native WI activation evidence only. No chat messages or request payloads.
 const clone = value => JSON.parse(JSON.stringify(value));
 const entryKey = entry => JSON.stringify([entry.world, entry.uid]);
 
-export function createContextRecorder() {
+export function createActivationRecorder() {
     const snapshots = new Map();
     let pending = null;
     let currentDiagnostic = null;
@@ -57,32 +57,19 @@ export function createContextRecorder() {
                 }),
             }));
         },
-        capture(chatKey, payload, endpoint) {
+        capture(chatKey) {
             if (!pending || pending.chatKey !== chatKey) return null;
-            const content = payload.messages ?? payload.prompt ?? payload.input;
-            if (typeof content !== 'string' && !Array.isArray(content)) return null;
             const snapshot = clone({
-                timestamp: Date.now(), type: pending.type, endpoint,
-                messages: Array.isArray(content) ? content : [{ role: 'prompt', content }],
+                timestamp: Date.now(), type: pending.type,
                 entries: pending.entries, scanned: pending.scanned,
             });
             snapshots.delete(chatKey);
             snapshots.set(chatKey, snapshot);
-            // Bounded session memory; no additional prompt copies in chat files.
+            // Bounded session memory; no records written into chat files.
             if (snapshots.size > 8) snapshots.delete(snapshots.keys().next().value);
             return snapshot;
         },
         get(chatKey) { const value = snapshots.get(chatKey); return value ? clone(value) : null; },
         clear(chatKey) { snapshots.delete(chatKey); },
     };
-}
-
-export function generationEndpoint(input, base) {
-    const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url, base);
-    if (url.origin !== new URL(base).origin) return null;
-    return [
-        '/api/backends/chat-completions/generate', '/api/backends/text-completions/generate',
-        '/api/novelai/generate', '/api/backends/kobold/generate',
-        '/api/backends/koboldhorde/generate',
-    ].includes(url.pathname) ? url.pathname : null;
 }

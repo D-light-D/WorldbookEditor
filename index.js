@@ -6,11 +6,11 @@ import { CONFIG } from './state.js';
 import { Actions } from './actions.js';
 import { UI } from './ui.js';
 import { logger } from './logger.js';
-import { initContextCapture, CONTEXT_UPDATED } from './request-context-capture.js';
-import { renderLatestContext } from './request-context-view.js';
+import { initActivationCapture, ACTIVATIONS_UPDATED } from './activation-capture.js';
+import { renderActivations } from './activation-view.js';
 
-initContextCapture();
-document.addEventListener(CONTEXT_UPDATED, renderLatestContext);
+initActivationCapture();
+document.addEventListener(ACTIVATIONS_UPDATED, renderActivations);
 
 jQuery(async () => {
 

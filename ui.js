@@ -7,10 +7,10 @@ import { Actions } from './actions.js';
 import { logger } from './logger.js';
 import { setupContentEditor } from './content-editor.js';
 import { Popup, POPUP_RESULT } from '../../../popup.js';
-import { renderLatestContext } from './request-context-view.js';
+import { renderActivations } from './activation-view.js';
 
 export const UI = {
-    renderLatestContext,
+    renderActivations,
     applyWriteLock(panel) {
         panel.classList.toggle('wb-readonly', !STATE.editable);
         panel.querySelectorAll('.wb-card input, .wb-card select, #btn-add-entry, #btn-sort-priority, #btn-group-sort').forEach(control => {
@@ -89,7 +89,7 @@ export const UI = {
                     <div class="wb-tab active" data-tab="editor"><i class="fa-solid fa-pen-to-square"></i> 编辑世界书</div>
                     <div class="wb-tab" data-tab="binding"><i class="fa-solid fa-link"></i> 绑定世界书</div>
                     <div class="wb-tab" data-tab="manage"><i class="fa-solid fa-list-check"></i> 管理世界书</div>
-                    <div class="wb-tab" data-tab="context"><i class="fa-solid fa-message"></i> 最新上下文</div>
+                    <div class="wb-tab" data-tab="activation"><i class="fa-solid fa-bolt"></i> 激活记录</div>
                 </div>
                 <div id="wb-close" class="wb-header-close" title="关闭"><i class="fa-solid fa-xmark"></i></div>
             </div>
@@ -154,7 +154,7 @@ export const UI = {
                     <div id="wb-footer-info" class="wb-footer-info"></div>
                 </div>
 
-                <div id="wb-view-context" class="wb-view-section wb-hidden"></div>
+                <div id="wb-view-activation" class="wb-view-section wb-hidden"></div>
                 <!-- 视图 3: 管理 -->
                 <div id="wb-view-manage" class="wb-view-section wb-hidden">
                     <div class="wb-manage-container">
